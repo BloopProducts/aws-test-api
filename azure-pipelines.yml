@@ -60,7 +60,7 @@ steps:
     awsCredentials: 'aws-developer'  # Nome da conexão de serviço já existente
     regionName: 'us-east-1'  # Região do seu cluster EKS
     command: 'eks'
-    arguments: 'update-kubeconfig --name <nome-do-cluster-EKS>'
+    arguments: 'update-kubeconfig --name mb-cluster'
   displayName: 'Configure kubectl to use EKS'
 
 # Passo 7: Fazer deploy da aplicação no Kubernetes
