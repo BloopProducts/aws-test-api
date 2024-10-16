@@ -45,15 +45,25 @@ steps:
       $(Build.BuildId)
       latest
 
-# Passo 5: Configurar acesso ao cluster EKS
-- task: Kubernetes@1
-  displayName: 'Set kubectl context'
+# Passo 5: Instalar a AWS CLI e kubectl
+- task: UsePythonVersion@0
   inputs:
-    connectionType: 'Kubernetes Service Connection'
-    kubernetesServiceEndpoint: 'aws-developer'  # Nome da sua conexão com AWS
-    namespace: 'default'
-  
-# Passo 6: Fazer deploy da aplicação no Kubernetes
+    versionSpec: '3.x'
+- script: |
+    pip install awscli --upgrade
+    pip install --upgrade aws-iam-authenticator
+  displayName: 'Install AWS CLI and kubectl'
+
+# Passo 6: Configurar AWS CLI com credenciais do serviço
+- task: AWSCLI@1
+  inputs:
+    awsCredentials: 'aws-developer'  # Nome da conexão de serviço já existente
+    regionName: 'us-east-1'  # Região do seu cluster EKS
+    command: 'eks'
+    arguments: 'update-kubeconfig --name <nome-do-cluster-EKS>'
+  displayName: 'Configure kubectl to use EKS'
+
+# Passo 7: Fazer deploy da aplicação no Kubernetes
 - task: KubernetesManifest@0
   displayName: 'Deploy to Kubernetes'
   inputs:
