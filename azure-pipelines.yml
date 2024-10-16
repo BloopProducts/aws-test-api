@@ -1,21 +1,64 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 trigger:
-- master
+  branches:
+    include:
+      - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 steps:
-- task: NodeTool@0
+# Passo 1: Checkout do código fonte
+- task: Checkout@1
+  displayName: 'Check out source code'
   inputs:
-    versionSpec: '20.x'
-  displayName: 'Install Node.js'
+    fetchDepth: 1
 
-- script: |
-    npm install
-    npm run build
-  displayName: 'npm install and build'
+# Passo 2: Fazer login no Docker Hub
+- task: Docker@2
+  displayName: 'Login to Docker Hub'
+  inputs:
+    containerRegistry: 'docker-hub-connection'  # Nome da sua conexão Docker Hub
+    command: login
+    username: $(dockerUsername)  # Defina isso como variável no pipeline
+    password: $(dockerPassword)  # Defina isso como variável no pipeline
+
+# Passo 3: Construir a imagem Docker
+- task: Docker@2
+  displayName: 'Build Docker Image'
+  inputs:
+    containerRegistry: 'docker-hub-connection'
+    repository: 'maykcode/aws-api'
+    command: build
+    Dockerfile: '**/Dockerfile'
+    tags: |
+      $(Build.BuildId)
+      latest
+  
+# Passo 4: Enviar a imagem para o Docker Hub
+- task: Docker@2
+  displayName: 'Push Docker Image'
+  inputs:
+    containerRegistry: 'docker-hub-connection'
+    repository: 'maykcode/aws-api'
+    command: push
+    tags: |
+      $(Build.BuildId)
+      latest
+
+# Passo 5: Configurar acesso ao cluster EKS
+- task: Kubernetes@1
+  displayName: 'Set kubectl context'
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: 'aws-developer'  # Nome da sua conexão com AWS
+    namespace: 'default'
+  
+# Passo 6: Fazer deploy da aplicação no Kubernetes
+- task: KubernetesManifest@0
+  displayName: 'Deploy to Kubernetes'
+  inputs:
+    action: 'deploy'
+    manifests: |
+      $(System.DefaultWorkingDirectory)/kubernetes-manifest.yml
+    containers: |
+      maykcode/aws-api:$(Build.BuildId)  # Puxar a imagem correta do Docker Hub
